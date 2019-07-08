@@ -1,0 +1,304 @@
+// Installation 
+//
+//Client:
+//
+//Step 1:
+//
+//Paste the following into your description.ext - its very important because you need to override my hook file to disable the eventhandlers!! Otherwise it will break.
+
+#include "custom\dual_arms\CfgSecondaryWeapons.hpp"
+
+//Inside CfgSecondaryWeapons you can turn addactions on and off, drop weapons on death on and off, block weapons as well as override any of my script files.
+//
+//In mission.sqm please add "secondary_weapons" to addons to require players to have the mod, plus the server needs it as well. Like this:
+
+addOns[]=
+	{
+		"exile_client",
+		"secondary_weapons",﻿
+		"a3_map_altis"
+	};
+
+//You will need to launch the @DualArms mod with your server.
+//
+// 
+//
+//Step 2:
+//
+//The following overrides need to be made
+
+ExileClient_gui_hud_event_onKeyUp
+
+//On line 170 (original files)
+//
+//The code needs to be modified to:
+
+			//Dual Arms Start
+				private _dialog = uiNameSpace getVariable ["RscDisplayInventory", displayNull];
+
+				if (secondaryWeapon player != "") then
+				{
+					if (((secondaryWeapon player) splitString "_") select ((count ((secondaryWeapon player) splitString "_"))-1) == "secondary") then 
+					{
+						if(!(SecondaryWeaponsSwapping) && (_dialog isEqualTo displayNull)) then
+						{
+							(primaryWeapon player) spawn SecondaryWeapons_events_swapSecondaryWeapon;
+						};
+					} else {
+						if (secondaryWeapon player != currentWeapon player) then
+						{
+							player selectWeapon (secondaryWeapon player);
+						};
+					};
+				} else {
+					if (primaryWeapon player != "") then 
+					{
+						if(!(SecondaryWeaponsSwapping) && (_dialog isEqualTo displayNull)) then
+						{
+							(primaryWeapon player) spawn SecondaryWeapons_events_addSecondaryWeapon;
+						};
+					};
+				};
+				//Dual Arms End
+
+ExileClient_object_player_event_onInventoryClosed
+
+//after like 16:
+
+//Dual Arms
+call SecondaryWeapons_events_onInventoryClosed;
+
+ExileClient_object_player_event_onInventoryOpened
+
+//Most important override!!
+//
+//Replace with a new line of private variables:
+
+
+private ["_cancelEvent", "_container", "_secondaryContainer", "_throw", "_dialog", "_BG", "_slot", "_prim", "_posSlot", "_posBtn", "_buttonDown", "_buttonUp", "_cover", "_pic", "_icoB", "_ico", "_SecondaryWeaponItems"]; 
+ 
+//
+//Then after the last throw for the old chest and before ExileClientInventoryOpened = true; 
+//
+//paste
+
+ 
+
+
+//*************Dual Arms Start
+	if (SecondaryWeaponsSwapping) then 
+	{
+		throw true;
+	};
+	
+	InventoryOpened = true;
+	
+	disableSerialization;
+
+	_dialog = uiNameSpace getVariable ["RscDisplayInventory", displayNull];
+
+
+
+	_BG = _dialog displayCtrl 1247;
+	_slot = _dialog displayCtrl 611;
+	_prim = _dialog displayCtrl 610;
+	
+	SecondaryWeaponsAccSlotInfo set [0, ctrlPosition (_dialog displayCtrl 626)];
+	SecondaryWeaponsMagazineSlotInfo set [0, ctrlPosition (_dialog displayCtrl 627)];
+	SecondaryWeaponsMuzzleSlotInfo set [0, ctrlPosition (_dialog displayCtrl 624)];
+	SecondaryWeaponsOpticSlotInfo set [0, ctrlPosition (_dialog displayCtrl 625)];
+	SecondaryWeaponsUnderSlotInfo set [0, ctrlPosition (_dialog displayCtrl 642)];
+
+	_posSlot = ctrlPosition _slot;
+	SecondaryWeaponsInventoryPosition = _posSlot;
+	_posBtn = ctrlPosition _prim;
+	
+	_buttonDown = _dialog ctrlCreate ["RscActivePictureDown", 1337];
+	_buttonDown ctrlSetPosition [((_posBtn select 0) + (_posBtn select 2) - 0.03), (_posBtn select 1),(_posBtn select 2)/12,(_posBtn select 3)];
+	_buttonDown ctrlCommit 0;
+	
+	_buttonUp = _dialog ctrlCreate ["RscActivePictureUp", 6969];
+	_buttonUp ctrlSetPosition [((_posSlot select 0) + (_posSlot select 2) - 0.03), (_posSlot select 1),(_posSlot select 2)/12,(_posSlot select 3)];
+	_buttonUp ctrlEnable (SecondaryWeaponsClassName != "");
+	_buttonUp ctrlCommit 0;
+
+	if (((secondaryWeapon player) !="") && {((secondaryWeapon player) splitString "_") select ((count ((secondaryWeapon player) splitString "_"))-1) == "secondary"}) then 
+	{
+		SecondaryWeaponsClassName = (secondaryWeapon player);
+		
+		_cover = _dialog ctrlCreate ["RscText", 1530];
+
+		_cover ctrlSetPosition _posSlot;
+		_cover ctrlSetBackgroundColor [0.7,0.7,0.7,0.1];
+		_cover ctrlCommit 0;
+			   
+		_pic = _dialog ctrlCreate ["RscPictureKeepAspect", 1531];
+
+		_pic ctrlSetPosition _posSlot;
+		_pic ctrlSetText (getText(configFile >> "cfgWeapons" >> (secondaryWeapon player) >> "img"));
+		_pic ctrlCommit 0;	
+
+		{
+			_x ctrlSetPosition [0,0,0,0];
+			_x ctrlSetScale 0;
+			_x ctrlCommit 0;
+		} forEach [_slot,_BG];
+
+		
+		{
+			(_dialog displayCtrl (_x select 1)) ctrlSetPosition [0,0,0,0];
+			(_dialog displayCtrl (_x select 1)) ctrlSetScale 0;
+			(_dialog displayCtrl (_x select 1)) ctrlCommit 0;
+			
+			(_dialog displayCtrl (_x select 2)) ctrlSetPosition [0,0,0,0];
+			(_dialog displayCtrl (_x select 2)) ctrlSetScale 0;
+			(_dialog displayCtrl (_x select 2)) ctrlCommit 0;
+			
+			_icoB = _dialog ctrlCreate ["RscText", ((_x select 1)*4)];
+
+			_icoB ctrlSetPosition (_x select 0);
+			_icoB ctrlSetBackgroundColor [0.7,0.7,0.7,0.1];
+			_icoB ctrlCommit 0;
+			
+			_ico = _dialog ctrlCreate ["RscPictureKeepAspect", ((_x select 2)*4)];
+
+			_ico ctrlSetPosition (_x select 0);
+			_ico ctrlSetText (_x select 4);
+			_ico ctrlCommit 0;
+			
+		} forEach [SecondaryWeaponsAccSlotInfo,SecondaryWeaponsMagazineSlotInfo,SecondaryWeaponsMuzzleSlotInfo,SecondaryWeaponsOpticSlotInfo,SecondaryWeaponsUnderSlotInfo];
+
+		_SecondaryWeaponItems = false call SecondaryWeapons_util_Ammo;
+		
+
+		if(((_SecondaryWeaponItems select 0) select 1) != "") then
+		{
+			((_SecondaryWeaponItems select 0) select 1) call SecondaryWeapons_gui_muzzleSlot;
+		};
+		
+		if(count SecondaryWeaponsWeaponInfo > 0 && !((SecondaryWeaponsWeaponInfo select 0) isEqualTo "ARRAY")) then
+		{
+			(SecondaryWeaponsWeaponInfo select 0) call SecondaryWeapons_gui_accSlot;
+		};
+		
+		if(((_SecondaryWeaponItems select 0) select 2) != "") then
+		{
+			((_SecondaryWeaponItems select 0) select 2) call SecondaryWeapons_gui_opticSlot;
+		};
+		
+		if(((_SecondaryWeaponItems select 0) select 3) != "") then
+		{
+			((_SecondaryWeaponItems select 0) select 3) call SecondaryWeapons_gui_underSlot;
+		};
+		
+		if(count (_SecondaryWeaponItems select 1) > 0) then
+		{
+			(_SecondaryWeaponItems select 1) call SecondaryWeapons_gui_magazineSlot;
+		};
+	} 
+	else 
+	{
+		SecondaryWeaponsClassName = "";
+	};
+	
+	//*************Dual Arms End
+
+// 
+
+ExileClient_object_player_event_onKilled
+
+//After line 41 - not inside the brackets add:
+
+//Dual Arms
+_this call SecondaryWeapons_events_onKilled;
+
+ExileClient_object_player_event_onTake
+
+//After line 15 and before the if statement I added:
+
+//Dual Arms
+_this call SecondaryWeapons_events_onTake;
+
+//Server:
+//
+//Step 1:
+//
+//Handling a disconnecting player, for Exile you will need to modify/make an override for ExileServer_system_network_event_onHandleDisconnect.sqf
+//
+//You will need the following bit of code to save the users pointer attachment (IR Laser/Flashlight etc and UGL Ammo (HE Rounds etc))
+
+//Dual Arms Start
+
+		_SWInfo = _unit getVariable ["SecondaryWeaponsWeaponInfo", []];
+				
+		if(count _SWInfo > 0) then
+		{
+			_uniform = uniformContainer _unit;
+			_vest = vestContainer _unit;
+			_backpack = backpackContainer _unit;
+			_containers = [_uniform, _vest, _backpack];
+			{
+				_item = _x;
+				_className = "";
+				_array = false;
+				_added = false;
+				if(typeName _item isEqualTo "ARRAY") then
+				{
+					_array = true;
+					_className = _x select 0;
+				} else {
+					_className = _x;
+				};
+				
+				{
+					if (!(isNull _x)) then 
+					{
+						if (_x canAdd [_className, 1]) exitWith 
+						{
+							if(_array) then
+							{
+								_unit addMagazine [_className, _item select 1];
+							} else {
+								_className = [_className, 0, -10] call BIS_fnc_trimString;
+								_unit addItem _className;
+							};
+							_added = true;
+						};
+					};
+					if (_added) exitWith {};
+				} forEach _containers;
+			} forEach _SWInfo;
+		};	
+		//Dual Arms End
+
+ 
+
+ExileClient_gui_traderDialog_updateInventoryListBox
+
+/*
+ The current list of supported mods is:
+
+RHSUSAF : http://steamcommunity.com/sharedfiles/filedetails/?id=843577117
+RHSAFRF : http://steamcommunity.com/sharedfiles/filedetails/?id=843425103
+RHSGREF : http://steamcommunity.com/sharedfiles/filedetails/?id=843593391
+RHSSAF : http://steamcommunity.com/sharedfiles/filedetails/?id=843632231
+NIArms : http://steamcommunity.com/sharedfiles/filedetails/?id=1208517358
+Project Infinite : http://steamcommunity.com/sharedfiles/filedetails/?id=807038742
+Exile Mod : http://www.exilemod.com/downloads/
+ADR-97 Weapon Pack : http://steamcommunity.com/sharedfiles/filedetails/?id=669962280
+Operation: TREBUCHET : http://steamcommunity.com/sharedfiles/filedetails/?id=769440155
+Cup Weapons : http://steamcommunity.com/sharedfiles/filedetails/?id=497660133
+NATO_Rus_Weapons : http://steamcommunity.com/sharedfiles/filedetails/?id=500929500
+Specialist Military Arms (SMA) : http://steamcommunity.com/sharedfiles/filedetails/?id=699630614
+The_Unsung_Vietnam_War_Mod : http://steamcommunity.com/sharedfiles/filedetails/?id=943001311
+FFAA Mod : http://steamcommunity.com/sharedfiles/filedetails/?id=820994401
+VME PLA : http://steamcommunity.com/sharedfiles/filedetails/?id=655153321
+2035: Russian Armed Forces : http://steamcommunity.com/sharedfiles/filedetails/?id=543460260
+FHQ Firearms : http://steamcommunity.com/sharedfiles/filedetails/?id=402601958
+BWMod : http://steamcommunity.com/sharedfiles/filedetails/?id=1200127537
+SFP: Swedish Forces Pack : http://steamcommunity.com/sharedfiles/filedetails/?id=826911897
+3CB BAF Weapons : http://steamcommunity.com/sharedfiles/filedetails/?id=893339590
+Faces of war : http://steamcommunity.com/sharedfiles/filedetails/?id=891433622
+IFA3_AIO_LITE : http://steamcommunity.com/sharedfiles/filedetails/?id=660460283
+Arma 3 Aegis (Beta) : http://steamcommunity.com/sharedfiles/filedetails/?id=949252631
+*/
